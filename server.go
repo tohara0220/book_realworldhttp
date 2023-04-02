@@ -1,34 +1,55 @@
+// ライブラリ以外は必ずpackage mainから始まる
 package main
 
+// 必要なパッケージの読み込み
+// 宣言したパッケージのみ使用可能
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httputil"
 )
 
-// クライアントやcurlからアクセスがあったときに呼ばれる
-// クライアントからのリクエストを受け取り、サーバーの処理結果を返す
-func handler(w http.ResponseWriter, r *http.Request) {
-	// 特に処理はせず、リクエストの内容をテキストで画面表示
-	dump, err := httputil.DumpRequest(r, true)
+// まずmainパッケージが呼ばれる
+func main() {
+	// resp = http.Responseオブジェクト
+	// サーバーからの情報を全て格納
+	//
+	resp, err := http.Get("http://localhost:18888")
+	// エラー処理
+	// 関数は戻り値としてエラーを返す
+	// nil:ゼロ値を表す
 	if err != nil {
-		http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-		return
+		// panic: エラーを表示して処理を終了
+		panic(err)
 	}
-	fmt.Println(string(dump))
-	fmt.Fprintf(w, "<html><body>hello</body></html>\n")
+	// 後処理
+	// defer: 関数から抜けた後に実行する
+	// ソケットからボディを読み込んだ後の処理
+	// finallyのようなもの？
+	defer resp.Body.Close()
+	// ステータスコード
+	defer fmt.Println(resp.Status)
+	defer fmt.Println(resp.StatusCode)
+	// レスポンスヘッダー
+	// mapオブジェクト
+	defer fmt.Println(resp.Header)
+	// 特定項目の最初の要素のみをGETする
+	defer log.Println(resp.Header.Get("Content-Length"))
+
+	// 文字列をバイト列として読み込む
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	// UTF-8に変換して画面に出力
+	log.Println(string(body))
 }
 
-// こちらが先に実行される
-// HTTPサーバーを初期化する
-func main() {
-	var httpServer http.Server
-	// トップのパスにアクセスがあったら"handler"関数を呼ぶ
-	http.HandleFunc("/", handler)
-	// 18888ポートで起動
-	// HTTPのデフォルトポートは80だが、システムで使用中だったり一般ユーザー権限ではアクセスできないことがある
-	log.Println("start http listening :18888")
-	httpServer.Addr = ":18888"
-	log.Println(httpServer.ListenAndServe())
-}
+// // エラーチェックなしの最小構成
+// func main() {
+// 	resp, _ := http.Get("http://localhost:18888")
+// 	defer resp.Body.Close()
+// 	body, _ := ioutil.ReadAll(resp.Body)
+// 	log.Println(string(body))
+// }
